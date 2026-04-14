@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Department — ML, Analytics & Engineering</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #09090f;
+      --surface:  #111118;
+      --card:     #16161f;
+      --card2:    #1c1c28;
+      --border:   #252535;
+      --purple:   #7c3aed;
+      --purple-l: #a78bfa;
+      --blue:     #2563eb;
+      --blue-l:   #60a5fa;
+      --cyan:     #06b6d4;
+      --green:    #10b981;
+      --orange:   #f59e0b;
+      --pink:     #ec4899;
+      --text:     #eeeef5;
+      --muted:    #7070a0;
+      --r:        12px;
+      --rl:       20px;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Grad helpers ─────────────────────────────────── */
+    .gt { background: linear-gradient(135deg, var(--purple-l), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gb { background: linear-gradient(135deg, var(--purple), var(--blue)); color: #fff; border: none; cursor: pointer; transition: opacity .2s, transform .15s; }
+    .gb:hover { opacity: .85; transform: translateY(-1px); }
+    .ob { background: transparent; color: var(--purple-l); border: 1px solid var(--purple); cursor: pointer; transition: background .2s, transform .15s; }
+    .ob:hover { background: rgba(124,58,237,.12); transform: translateY(-1px); }
+
+    /* ── Nav ──────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 5%; height: 64px;
+      background: rgba(9,9,15,.85); backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.5px; }
+    .nav-logo-icon { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--purple), var(--blue)); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a { color: var(--muted); font-size: .875rem; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { padding: 8px 18px; border-radius: 8px; font-size: .85rem; font-weight: 600; }
+    @media (max-width: 768px) { .nav-links { display: none; } }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    #hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 100px 5% 70px; position: relative; overflow: hidden;
+    }
+    .glow { position: absolute; border-radius: 50%; filter: blur(140px); opacity: .15; pointer-events: none; }
+    .g1 { width: 700px; height: 700px; background: var(--purple); top: -250px; left: -180px; }
+    .g2 { width: 600px; height: 600px; background: var(--blue);   bottom: -150px; right: -150px; }
+    .g3 { width: 400px; height: 400px; background: var(--cyan);   top: 40%; left: 50%; transform: translate(-50%,-50%); opacity: .07; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 999px;
+      border: 1px solid var(--border); background: rgba(255,255,255,.04);
+      font-size: .78rem; color: var(--muted); margin-bottom: 2rem; letter-spacing: .5px;
+    }
+    .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+    #hero h1 { font-size: clamp(2.6rem, 6.5vw, 5rem); font-weight: 900; line-height: 1.08; letter-spacing: -2px; max-width: 860px; margin-bottom: 1.5rem; }
+    #hero p { font-size: clamp(.95rem, 1.8vw, 1.15rem); color: var(--muted); max-width: 580px; margin-bottom: 2.5rem; }
+    .hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .hero-btns button { padding: 13px 28px; border-radius: 10px; font-size: .95rem; font-weight: 700; }
+    .hero-stats { display: flex; gap: 2.5rem; margin-top: 4.5rem; flex-wrap: wrap; justify-content: center; }
+    .stat { text-align: center; }
+    .stat-num { font-size: 2.2rem; font-weight: 900; }
+    .stat-lbl { font-size: .75rem; color: var(--muted); margin-top: 2px; letter-spacing: .5px; }
+    .stat-sep { width: 1px; background: var(--border); align-self: stretch; }
+    @media (max-width: 480px) { .stat-sep { display: none; } }
+
+    /* ── Section wrapper ─────────────────────────────── */
+    section { padding: 90px 5%; }
+    .sec-tag { font-size: .72rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--purple-l); margin-bottom: .6rem; }
+    .sec-title { font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 900; letter-spacing: -.5px; margin-bottom: .75rem; }
+    .sec-sub { color: var(--muted); max-width: 520px; margin-bottom: 3rem; font-size: .95rem; }
+
+    /* ── Pillars (what we do) ─────────────────────────── */
+    #pillars { background: var(--surface); }
+    .pillars-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
+    .pillar {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--rl); padding: 2rem 1.75rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .pillar:hover { transform: translateY(-4px); }
+    .pillar.ml { border-top: 2px solid var(--purple); }
+    .pillar.ml:hover { border-color: var(--purple-l); }
+    .pillar.eng { border-top: 2px solid var(--blue); }
+    .pillar.eng:hover { border-color: var(--blue-l); }
+    .pillar.analytics { border-top: 2px solid var(--cyan); }
+    .pillar.analytics:hover { border-color: var(--cyan); }
+    .pillar.bi { border-top: 2px solid var(--green); }
+    .pillar.bi:hover { border-color: var(--green); }
+    .pillar-icon { font-size: 2rem; margin-bottom: 1rem; }
+    .pillar-name { font-size: 1rem; font-weight: 800; margin-bottom: .5rem; }
+    .pillar-desc { font-size: .85rem; color: var(--muted); }
+    .pillar-badge { display: inline-block; margin-top: .85rem; font-size: .7rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+    .pillar.ml .pillar-badge { background: rgba(124,58,237,.18); color: var(--purple-l); }
+    .pillar.eng .pillar-badge { background: rgba(37,99,235,.18); color: var(--blue-l); }
+    .pillar.analytics .pillar-badge { background: rgba(6,182,212,.18); color: var(--cyan); }
+    .pillar.bi .pillar-badge { background: rgba(16,185,129,.18); color: var(--green); }
+
+    /* ── Models (primary) ────────────────────────────── */
+    #models { background: var(--bg); }
+    .models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+    .model-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--rl); padding: 1.8rem;
+      transition: border-color .2s, transform .2s; display: flex; flex-direction: column; gap: 1rem;
+      position: relative; overflow: hidden;
+    }
+    .model-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--purple), transparent); opacity: 0; transition: opacity .3s; }
+    .model-card:hover { border-color: rgba(124,58,237,.5); transform: translateY(-4px); }
+    .model-card:hover::before { opacity: 1; }
+    .model-header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+    .model-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+    .model-status { display: flex; align-items: center; gap: 5px; font-size: .7rem; color: var(--green); }
+    .model-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .model-name { font-size: 1.05rem; font-weight: 800; margin-bottom: .2rem; }
+    .model-desc { font-size: .85rem; color: var(--muted); flex: 1; }
+    .model-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag { font-size: .68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: rgba(124,58,237,.14); color: var(--purple-l); border: 1px solid rgba(124,58,237,.22); }
+    .model-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .metric { background: var(--card2); border-radius: 8px; padding: .6rem .8rem; }
+    .metric-val { font-size: .9rem; font-weight: 800; }
+    .metric-lbl { font-size: .65rem; color: var(--muted); margin-top: 1px; }
+    .model-actions { display: flex; gap: .75rem; }
+    .model-actions button { flex: 1; padding: 10px; border-radius: 8px; font-size: .82rem; font-weight: 700; }
+
+    /* ── Live Demo ───────────────────────────────────── */
+    #demo { background: var(--surface); }
+    .demo-wrap {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--rl); overflow: hidden;
+    }
+    @media (max-width: 768px) { .demo-wrap { grid-template-columns: 1fr; } }
+    .demo-left { padding: 2.5rem; border-right: 1px solid var(--border); }
+    .demo-right { padding: 2.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+    .demo-panel-lbl { font-size: .72rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5rem; }
+    label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 5px; }
+    select, textarea, input[type="text"] {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: .88rem;
+      outline: none; transition: border-color .2s; font-family: inherit; margin-bottom: 1.1rem;
+    }
+    select:focus, textarea:focus, input:focus { border-color: var(--purple); }
+    textarea { resize: vertical; min-height: 110px; }
+    .run-btn { width: 100%; padding: 13px; border-radius: 9px; font-size: .95rem; font-weight: 800; margin-top: .25rem; }
+    .output-box {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem; min-height: 160px;
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: .8rem;
+      color: var(--cyan); white-space: pre-wrap; word-break: break-word; overflow-y: auto;
+    }
+    .output-ph { color: var(--muted); font-family: inherit; font-size: .875rem; }
+    .conf-bar { }
+    .conf-lbl { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
+    .conf-track { height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .conf-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--purple), var(--cyan)); width: 0%; transition: width 1s ease; }
+    .latency-row { display: flex; gap: 1.5rem; font-size: .75rem; color: var(--muted); }
+    .latency-row span { color: var(--cyan); }
+    .api-note { background: rgba(37,99,235,.07); border: 1px solid rgba(37,99,235,.18); border-radius: 8px; padding: .9rem 1rem; font-size: .78rem; color: var(--muted); line-height: 1.5; }
+    .api-note code { color: var(--cyan); background: rgba(6,182,212,.1); padding: 1px 5px; border-radius: 4px; }
+
+    /* ── Analytics / Tools strip ─────────────────────── */
+    #analytics { background: var(--bg); }
+    .analytics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+    .tool-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 1.5rem; display: flex; align-items: flex-start; gap: 1rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .tool-card:hover { border-color: var(--blue-l); transform: translateY(-3px); }
+    .tool-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+    .tool-info { }
+    .tool-name { font-size: .95rem; font-weight: 800; margin-bottom: .3rem; }
+    .tool-desc { font-size: .82rem; color: var(--muted); }
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
+    .kpi {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
+      padding: 1.4rem 1.2rem; display: flex; flex-direction: column; gap: .3rem;
+    }
+    .kpi-val { font-size: 1.7rem; font-weight: 900; }
+    .kpi-lbl { font-size: .75rem; color: var(--muted); }
+    .kpi-delta { font-size: .72rem; font-weight: 700; margin-top: 2px; }
+    .up { color: var(--green); } .dn { color: var(--pink); }
+
+    /* ── Code / Repos ────────────────────────────────── */
+    #code { background: var(--surface); }
+    .repos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
+    .repo-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 1.5rem; display: flex; flex-direction: column; gap: .75rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .repo-card:hover { border-color: var(--blue-l); transform: translateY(-3px); }
+    .repo-top { display: flex; align-items: center; gap: .75rem; }
+    .repo-icon { font-size: 1.2rem; }
+    .repo-name { font-weight: 800; font-size: .95rem; }
+    .repo-desc { font-size: .83rem; color: var(--muted); flex: 1; }
+    .repo-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+    .repo-lang { display: flex; align-items: center; gap: 5px; font-size: .75rem; color: var(--muted); }
+    .ldot { width: 9px; height: 9px; border-radius: 50%; }
+    .repo-btns { display: flex; gap: .5rem; }
+    .rbtn { font-size: .72rem; padding: 5px 12px; border-radius: 6px; font-weight: 700; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; transition: border-color .2s, color .2s; }
+    .rbtn:hover { border-color: var(--blue-l); color: var(--blue-l); }
+
+    /* ── Stack banner ────────────────────────────────── */
+    #stack { background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 40px 5%; }
+    .stack-label { font-size: .72rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: 1.75rem; }
+    .stack-icons { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+    .stack-pill {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: .8rem; font-weight: 600; color: var(--muted); transition: border-color .2s, color .2s;
+    }
+    .stack-pill:hover { border-color: var(--purple-l); color: var(--text); }
+    .stack-pill span { font-size: 1rem; }
+
+    /* ── Footer ──────────────────────────────────────── */
+    footer {
+      padding: 3rem 5%; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;
+      font-size: .82rem; color: var(--muted);
+    }
+    .footer-logo { font-weight: 800; font-size: 1rem; color: var(--text); }
+    .footer-links { display: flex; gap: 1.5rem; }
+    .footer-links a { color: var(--muted); transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── Toast ───────────────────────────────────────── */
+    #toast { position: fixed; bottom: 2rem; right: 2rem; z-index: 999; background: var(--card2); border: 1px solid var(--border); padding: 12px 20px; border-radius: 10px; font-size: .85rem; transform: translateY(16px); opacity: 0; transition: all .3s; pointer-events: none; }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── Spinner ─────────────────────────────────────── */
+    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: sp .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">⚡</div>
+    <span>Data <span class="gt">Department</span></span>
+  </div>
+  <div class="nav-links">
+    <a href="#pillars">Overview</a>
+    <a href="#models">ML Models</a>
+    <a href="#demo">Live Demo</a>
+    <a href="#analytics">Analytics</a>
+    <a href="#code">Code</a>
+  </div>
+  <button class="gb nav-cta" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'})">Try a Model</button>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────── -->
+<section id="hero">
+  <div class="glow g1"></div>
+  <div class="glow g2"></div>
+  <div class="glow g3"></div>
+
+  <div class="badge"><span class="badge-dot"></span> Data Department — All Systems Operational</div>
+
+  <h1>Data, <span class="gt">Intelligence</span><br>& Machine Learning</h1>
+  <p>One department. End-to-end data stack — from pipelines and warehousing to deployed ML models and business intelligence.</p>
+
+  <div class="hero-btns">
+    <button class="gb" onclick="document.getElementById('models').scrollIntoView({behavior:'smooth'})">Explore ML Models</button>
+    <button class="ob" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'})">Run Live Inference</button>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num gt" id="cnt-models">0</div><div class="stat-lbl">ML Models Deployed</div></div>
+    <div class="stat-sep"></div>
+    <div class="stat"><div class="stat-num gt" id="cnt-pipelines">0</div><div class="stat-lbl">Data Pipelines</div></div>
+    <div class="stat-sep"></div>
+    <div class="stat"><div class="stat-num gt" id="cnt-repos">0</div><div class="stat-lbl">Code Repositories</div></div>
+    <div class="stat-sep"></div>
+    <div class="stat"><div class="stat-num gt" id="cnt-infer">0</div><div class="stat-lbl">API Inferences</div></div>
+  </div>
+</section>
+
+<!-- ── What We Do ────────────────────────────────────────── -->
+<section id="pillars">
+  <div class="sec-tag">What We Do</div>
+  <h2 class="sec-title">Full-Stack Data Capability</h2>
+  <p class="sec-sub">From raw data ingestion to production ML — the department covers every layer of the modern data stack.</p>
+
+  <div class="pillars-grid">
+    <div class="pillar ml">
+      <div class="pillar-icon">🤖</div>
+      <div class="pillar-name">Machine Learning</div>
+      <div class="pillar-desc">Model development, fine-tuning, evaluation, and deployment. Computer Vision, NLP, tabular, and time series models — versioned and served via API.</div>
+      <span class="pillar-badge">Primary Focus</span>
+    </div>
+    <div class="pillar eng">
+      <div class="pillar-icon">🏗️</div>
+      <div class="pillar-name">Data Engineering</div>
+      <div class="pillar-desc">Scalable ETL/ELT pipelines, data lake architecture, orchestration (Airflow / Prefect), and data quality monitoring across streaming and batch workloads.</div>
+      <span class="pillar-badge">Infrastructure</span>
+    </div>
+    <div class="pillar analytics">
+      <div class="pillar-icon">📈</div>
+      <div class="pillar-name">Data Analytics</div>
+      <div class="pillar-desc">Exploratory analysis, statistical modeling, A/B testing, cohort analysis, and self-serve analytics with dbt and SQL. Insights that drive decisions.</div>
+      <span class="pillar-badge">Insights</span>
+    </div>
+    <div class="pillar bi">
+      <div class="pillar-icon">📊</div>
+      <div class="pillar-name">Business Intelligence</div>
+      <div class="pillar-desc">Executive dashboards, KPI tracking, automated reporting, and data storytelling via Tableau, Power BI, and Metabase. Data visible to every stakeholder.</div>
+      <span class="pillar-badge">Reporting</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── ML Models ─────────────────────────────────────────── -->
+<section id="models">
+  <div class="sec-tag">Machine Learning · Primary Focus</div>
+  <h2 class="sec-title">Deployed ML Models</h2>
+  <p class="sec-sub">Each model is versioned, monitored, and accessible via REST API. Click "Try It" to test live inference in the demo panel below.</p>
+
+  <div class="models-grid" id="modelsGrid"></div>
+</section>
+
+<!-- ── Live Demo ─────────────────────────────────────────── -->
+<section id="demo">
+  <div class="sec-tag">Live Inference</div>
+  <h2 class="sec-title">Run a Model — Right Now</h2>
+  <p class="sec-sub">Select a model, provide input, and hit Run. The request is sent to the external API endpoint in real time.</p>
+
+  <div class="demo-wrap">
+    <div class="demo-left">
+      <div class="demo-panel-lbl">Configure & Input</div>
+
+      <div>
+        <label>Select Model</label>
+        <select id="demoSel" onchange="updateDemo()"></select>
+      </div>
+      <div>
+        <label id="inpLabel">Input</label>
+        <textarea id="demoInp" rows="5" placeholder="Enter input here..."></textarea>
+      </div>
+
+      <div class="api-note">
+        Endpoint: <code id="epDisplay">—</code>
+      </div>
+
+      <button class="gb run-btn" id="runBtn" onclick="runInference()">Run Inference</button>
+    </div>
+
+    <div class="demo-right">
+      <div class="demo-panel-lbl">Output</div>
+
+      <div class="output-box" id="outputBox">
+        <span class="output-ph">Results appear here after running the model...</span>
+      </div>
+
+      <div class="conf-bar" id="confBar" style="display:none">
+        <div class="conf-lbl"><span id="confTxt">Confidence</span><span id="confPct">0%</span></div>
+        <div class="conf-track"><div class="conf-fill" id="confFill"></div></div>
+      </div>
+
+      <div class="latency-row">
+        Latency: <span id="latDisp">—</span> &nbsp;|&nbsp; Model: <span id="mdlDisp" style="color:var(--purple-l)">—</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Analytics & Tools ─────────────────────────────────── -->
+<section id="analytics">
+  <div class="sec-tag">Data Analytics & BI</div>
+  <h2 class="sec-title">Analytics Stack & KPIs</h2>
+  <p class="sec-sub">Tools and metrics that power data-driven decisions across the organisation.</p>
+
+  <div class="analytics-grid" id="toolsGrid"></div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+</section>
+
+<!-- ── Tech Stack ────────────────────────────────────────── -->
+<section id="stack">
+  <div class="stack-label">Technology Stack</div>
+  <div class="stack-icons" id="stackIcons"></div>
+</section>
+
+<!-- ── Code & Repos ──────────────────────────────────────── -->
+<section id="code">
+  <div class="sec-tag">Open Source & Internal Code</div>
+  <h2 class="sec-title">Repositories & Notebooks</h2>
+  <p class="sec-sub">Training pipelines, ELT scripts, experiment notebooks, and deployment infrastructure. Open in GitHub or run directly in Colab.</p>
+
+  <div class="repos-grid" id="reposGrid"></div>
+</section>
+
+<!-- ── Footer ───────────────────────────────────────────── -->
+<footer>
+  <span class="footer-logo">⚡ Data <span class="gt">Department</span></span>
+  <div class="footer-links">
+    <a href="#models">Models</a>
+    <a href="#demo">Demo</a>
+    <a href="#analytics">Analytics</a>
+    <a href="#code">Code</a>
+  </div>
+  <span>© <span id="yr"></span> Data Department</span>
+</footer>
+
+<div id="toast"></div>
+
+<!-- ── Data & Logic ──────────────────────────────────────── -->
+<script>
+/* ─ DATA ── Edit these to reflect your real models & repos ── */
+
+const MODELS = [
+  {
+    id: "text-classifier",
+    name: "Text Classifier",
+    icon: "📝", iconBg: "rgba(124,58,237,.18)",
+    desc: "Fine-tuned BERT for multi-class sentiment and topic classification. 93.2% accuracy on held-out test set.",
+    tags: ["NLP", "BERT", "Classification"],
+    metrics: [{ val: "93.2%", lbl: "Accuracy" }, { val: "v2.1", lbl: "Version" }],
+    endpoint: "https://YOUR_API_GATEWAY_URL/prod/text-classifier",
+    inputLabel: "Text to classify",
+    placeholder: "The product quality is outstanding and delivery was fast.",
+    type: "text"
+  },
+  {
+    id: "image-classifier",
+    name: "Image Classifier",
+    icon: "🖼️", iconBg: "rgba(37,99,235,.18)",
+    desc: "ResNet-50 fine-tuned on a custom dataset. 91% top-1 accuracy across 10 visual categories.",
+    tags: ["Vision", "ResNet-50", "CNN"],
+    metrics: [{ val: "91.0%", lbl: "Top-1 Acc" }, { val: "v1.4", lbl: "Version" }],
+    endpoint: "https://YOUR_API_GATEWAY_URL/prod/image-classifier",
+    inputLabel: "Image URL to classify",
+    placeholder: "https://example.com/sample-image.jpg",
+    type: "url"
+  },
+  {
+    id: "tabular-predictor",
+    name: "Tabular Predictor",
+    icon: "📊", iconBg: "rgba(6,182,212,.18)",
+    desc: "XGBoost ensemble for structured data prediction with SHAP explainability and Optuna hyperparameter tuning.",
+    tags: ["XGBoost", "Tabular", "SHAP"],
+    metrics: [{ val: "88.7%", lbl: "R² Score" }, { val: "v3.0", lbl: "Version" }],
+    endpoint: "https://YOUR_API_GATEWAY_URL/prod/tabular-predictor",
+    inputLabel: 'Features as JSON',
+    placeholder: '{"age": 30, "income": 50000, "credit_score": 720}',
+    type: "json"
+  },
+  {
+    id: "summarizer",
+    name: "Text Summarizer",
+    icon: "✍️", iconBg: "rgba(236,72,153,.18)",
+    desc: "T5-based abstractive summarization. Condenses long documents into 2–3 sentence summaries.",
+    tags: ["NLP", "T5", "Summarization"],
+    metrics: [{ val: "0.42", lbl: "ROUGE-2" }, { val: "v1.2", lbl: "Version" }],
+    endpoint: "https://YOUR_API_GATEWAY_URL/prod/summarizer",
+    inputLabel: "Document to summarize",
+    placeholder: "Machine learning is a branch of artificial intelligence that focuses on using data and algorithms...",
+    type: "text"
+  },
+  {
+    id: "anomaly-detector",
+    name: "Anomaly Detector",
+    icon: "🔍", iconBg: "rgba(245,158,11,.18)",
+    desc: "Isolation Forest + Autoencoder ensemble for detecting anomalies in time-series and tabular data streams.",
+    tags: ["Anomaly", "Autoencoder", "Time-Series"],
+    metrics: [{ val: "96.1%", lbl: "Precision" }, { val: "v1.0", lbl: "Version" }],
+    endpoint: "https://YOUR_API_GATEWAY_URL/prod/anomaly-detector",
+    inputLabel: 'Time-series values as JSON array',
+    placeholder: '[120, 118, 122, 119, 500, 121, 118]',
+    type: "json"
+  },
+  {
+    id: "forecaster",
+    name: "Demand Forecaster",
+    icon: "📉", iconBg: "rgba(16,185,129,.18)",
+    desc: "Prophet + LSTM hybrid model for business demand forecasting. Handles seasonality, holidays, and trend shifts.",
+    tags: ["Forecasting", "LSTM", "Prophet"],
+    metrics: [{ val: "4.2%", lbl: "MAPE" }, { val: "v2.3", lbl: "Version" }],
+    endpoint: "https://YOUR_API_GATEWAY_URL/prod/forecaster",
+    inputLabel: 'Historical data as JSON',
+    placeholder: '{"periods": 30, "history": [{"ds":"2024-01-01","y":120}]}',
+    type: "json"
+  }
+];
+
+const REPOS = [
+  { name: "ml-model-training", icon: "🤖", desc: "Unified training framework for all deployed models — configurable pipelines, experiment tracking with MLflow, and ONNX export.", lang: "Python", lc: "#3572A5", stars: 54, github: "https://github.com/YOUR_USERNAME/ml-model-training", colab: "https://colab.research.google.com/YOUR_NOTEBOOK_ID" },
+  { name: "data-pipelines-etl", icon: "🏗️", desc: "Airflow DAGs and dbt models for the core ELT pipeline — raw ingestion, transformation, and data quality tests.", lang: "Python", lc: "#3572A5", stars: 38, github: "https://github.com/YOUR_USERNAME/data-pipelines-etl", colab: null },
+  { name: "ml-deployment-aws", icon: "☁️", desc: "CloudFormation + Docker templates for SageMaker endpoint deployment with API Gateway integration and auto-scaling.", lang: "Shell", lc: "#89e051", stars: 31, github: "https://github.com/YOUR_USERNAME/ml-deployment-aws", colab: null },
+  { name: "eda-toolkit", icon: "📈", desc: "Reusable EDA utilities — distribution plots, correlation analysis, missing value reports, and automated profiling.", lang: "Python", lc: "#3572A5", stars: 22, github: "https://github.com/YOUR_USERNAME/eda-toolkit", colab: "https://colab.research.google.com/YOUR_NOTEBOOK_ID" },
+  { name: "anomaly-detection-research", icon: "🔍", desc: "Research notebook comparing Isolation Forest, OCSVM, and Autoencoder approaches on benchmark datasets.", lang: "Jupyter", lc: "#DA5B0B", stars: 19, github: "https://github.com/YOUR_USERNAME/anomaly-detection-research", colab: "https://colab.research.google.com/YOUR_NOTEBOOK_ID" },
+  { name: "feature-store", icon: "🗃️", desc: "Lightweight feature store implementation — feature versioning, point-in-time correct retrieval, and online/offline serving.", lang: "Python", lc: "#3572A5", stars: 27, github: "https://github.com/YOUR_USERNAME/feature-store", colab: null }
+];
+
+const TOOLS = [
+  { icon: "🗄️", bg: "rgba(37,99,235,.15)",   name: "Data Warehouse",    desc: "Snowflake / BigQuery as the central analytical store. dbt models for transformation." },
+  { icon: "🔄", bg: "rgba(245,158,11,.15)",  name: "Orchestration",     desc: "Apache Airflow for batch pipelines. Kafka for real-time streaming workloads." },
+  { icon: "🧪", bg: "rgba(16,185,129,.15)",  name: "Experiment Tracking", desc: "MLflow for model versioning, metric logging, and artifact storage across all experiments." },
+  { icon: "📊", bg: "rgba(6,182,212,.15)",   name: "BI & Dashboards",   desc: "Metabase and Tableau connected to the warehouse. Self-serve analytics for all teams." },
+  { icon: "🔍", bg: "rgba(236,72,153,.15)",  name: "Data Quality",      desc: "Great Expectations + Monte Carlo for automated data profiling and anomaly alerting." },
+  { icon: "🛡️", bg: "rgba(124,58,237,.15)",  name: "Governance",        desc: "Data catalog (Datahub), lineage tracking, PII tagging, and access control policies." }
+];
+
+const KPIS = [
+  { val: "99.8%", lbl: "Pipeline Uptime", delta: "+0.2%", up: true },
+  { val: "< 2 s", lbl: "Avg API Latency", delta: "-40ms",  up: true },
+  { val: "1.4 TB", lbl: "Data Processed / Day", delta: "+12%", up: true },
+  { val: "98.3%", lbl: "Data Quality Score", delta: "+1.1%", up: true }
+];
+
+const STACK = [
+  { icon: "🐍", name: "Python" }, { icon: "⚡", name: "PyTorch" }, { icon: "🤗", name: "HuggingFace" },
+  { icon: "🌲", name: "XGBoost" }, { icon: "☁️", name: "AWS SageMaker" }, { icon: "🗄️", name: "Snowflake" },
+  { icon: "🔄", name: "Airflow" }, { icon: "🧱", name: "dbt" }, { icon: "📦", name: "MLflow" },
+  { icon: "🐳", name: "Docker" }, { icon: "📊", name: "Tableau" }, { icon: "🔬", name: "Spark" }
+];
+
+/* ─ Render ─────────────────────────────────────────────── */
+function renderModels() {
+  document.getElementById("modelsGrid").innerHTML = MODELS.map(m => `
+    <div class="model-card">
+      <div class="model-header">
+        <div class="model-icon" style="background:${m.iconBg}">${m.icon}</div>
+        <div class="model-status"><div class="model-status-dot"></div>Live</div>
+      </div>
+      <div>
+        <div class="model-name">${m.name}</div>
+        <div class="model-desc">${m.desc}</div>
+      </div>
+      <div class="model-tags">${m.tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
+      <div class="model-metrics">${m.metrics.map(x => `<div class="metric"><div class="metric-val">${x.val}</div><div class="metric-lbl">${x.lbl}</div></div>`).join("")}</div>
+      <div class="model-actions">
+        <button class="gb" onclick="selectDemo('${m.id}')">Try It</button>
+        <button class="ob" onclick="copyEP('${m.endpoint}')">Copy API</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderRepos() {
+  document.getElementById("reposGrid").innerHTML = REPOS.map(r => `
+    <div class="repo-card">
+      <div class="repo-top"><span class="repo-icon">${r.icon}</span><span class="repo-name">${r.name}</span></div>
+      <div class="repo-desc">${r.desc}</div>
+      <div class="repo-foot">
+        <div class="repo-lang"><span class="ldot" style="background:${r.lc}"></span>${r.lang} · ★ ${r.stars}</div>
+        <div class="repo-btns">
+          <button class="rbtn" onclick="openLink('${r.github}')">GitHub</button>
+          ${r.colab ? `<button class="rbtn" onclick="openLink('${r.colab}')">Colab</button>` : ""}
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderTools() {
+  document.getElementById("toolsGrid").innerHTML = TOOLS.map(t => `
+    <div class="tool-card">
+      <div class="tool-icon" style="background:${t.bg}">${t.icon}</div>
+      <div class="tool-info"><div class="tool-name">${t.name}</div><div class="tool-desc">${t.desc}</div></div>
+    </div>
+  `).join("");
+  document.getElementById("kpiRow").innerHTML = KPIS.map(k => `
+    <div class="kpi">
+      <div class="kpi-val gt">${k.val}</div>
+      <div class="kpi-lbl">${k.lbl}</div>
+      <div class="kpi-delta ${k.up ? 'up' : 'dn'}">${k.up ? '▲' : '▼'} ${k.delta}</div>
+    </div>
+  `).join("");
+}
+
+function renderStack() {
+  document.getElementById("stackIcons").innerHTML = STACK.map(s => `
+    <div class="stack-pill"><span>${s.icon}</span>${s.name}</div>
+  `).join("");
+}
+
+function populateDemoSelect() {
+  const sel = document.getElementById("demoSel");
+  sel.innerHTML = MODELS.map(m => `<option value="${m.id}">${m.icon} ${m.name}</option>`).join("");
+  updateDemo();
+}
+
+function updateDemo() {
+  const m = MODELS.find(x => x.id === document.getElementById("demoSel").value);
+  if (!m) return;
+  document.getElementById("demoInp").placeholder = m.placeholder;
+  document.getElementById("inpLabel").textContent = m.inputLabel;
+  document.getElementById("epDisplay").textContent = m.endpoint;
+  document.getElementById("mdlDisp").textContent = m.name;
+}
+
+/* ─ Inference ─────────────────────────────────────────── */
+async function runInference() {
+  const m = MODELS.find(x => x.id === document.getElementById("demoSel").value);
+  const raw = document.getElementById("demoInp").value.trim();
+  if (!raw) { toast("Please enter some input first."); return; }
+
+  const btn = document.getElementById("runBtn");
+  btn.innerHTML = '<span class="spin"></span> Running…'; btn.disabled = true;
+  document.getElementById("outputBox").innerHTML = '<span class="output-ph">Calling API…</span>';
+  document.getElementById("confBar").style.display = "none";
+  document.getElementById("latDisp").textContent = "—";
+
+  const t0 = Date.now();
+  try {
+    let body;
+    if (m.type === "json") {
+      try { body = JSON.parse(raw); } catch { toast("Invalid JSON input."); resetBtn(); return; }
+    } else { body = { input: raw, model_id: m.id }; }
+
+    const res = await fetch(m.endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const lat = Date.now() - t0;
+    document.getElementById("latDisp").textContent = lat + " ms";
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    document.getElementById("outputBox").textContent = JSON.stringify(data, null, 2);
+    showConf(data.confidence ?? data.score ?? data.probability ?? null);
+    bumpInfer();
+  } catch {
+    const lat = Date.now() - t0;
+    document.getElementById("latDisp").textContent = lat + " ms (mock)";
+    const mock = getMock(m, raw);
+    document.getElementById("outputBox").textContent = JSON.stringify(mock, null, 2);
+    showConf(mock.confidence ?? null);
+    toast("Using mock result — replace endpoint URL with your real API.");
+    bumpInfer();
+  }
+  resetBtn();
+}
+
+function showConf(conf) {
+  if (conf == null) return;
+  const pct = Math.round(conf * 100);
+  document.getElementById("confBar").style.display = "block";
+  document.getElementById("confPct").textContent = pct + "%";
+  document.getElementById("confFill").style.width = pct + "%";
+}
+
+function getMock(m, _) {
+  const base = { model_id: m.id, framework: "mock", mock: true };
+  const map = {
+    "text-classifier":    { ...base, label: "positive", confidence: 0.924, scores: { positive: 0.924, neutral: 0.061, negative: 0.015 } },
+    "image-classifier":   { ...base, label: "cat", confidence: 0.871, top5: [["cat",0.871],["dog",0.074],["rabbit",0.031]] },
+    "tabular-predictor":  { ...base, prediction: 42750.50, confidence: 0.78 },
+    "summarizer":         { ...base, summary: "Machine learning uses data and algorithms to enable computers to learn and improve from experience without being explicitly programmed.", confidence: 0.88 },
+    "anomaly-detector":   { ...base, anomaly: true, anomaly_score: 0.93, confidence: 0.93 },
+    "forecaster":         { ...base, forecast: [121,124,119,128,132,135], mape: 4.2, confidence: 0.80 }
+  };
+  return map[m.id] || { ...base, result: "No mock available." };
+}
+
+function resetBtn() { const b = document.getElementById("runBtn"); b.innerHTML = "Run Inference"; b.disabled = false; }
+function bumpInfer() { const n = parseInt(localStorage.getItem("ic")||"0")+1; localStorage.setItem("ic",n); animNum("cnt-infer", n); }
+function selectDemo(id) { document.getElementById("demoSel").value = id; updateDemo(); document.getElementById("demo").scrollIntoView({behavior:"smooth"}); }
+function copyEP(url) { navigator.clipboard.writeText(url).then(() => toast("Endpoint URL copied!")); }
+function openLink(url) { if (url && url !== "null") window.open(url, "_blank", "noopener"); }
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3200); }
+
+/* ─ Animated counters ─────────────────────────────────── */
+function animNum(id, target, dur = 1000) {
+  const el = document.getElementById(id); if (!el) return;
+  const start = parseInt(el.textContent) || 0;
+  const step = (target - start) / (dur / 16); let cur = start;
+  const t = setInterval(() => { cur += step; if (cur >= target) { el.textContent = target; clearInterval(t); } else el.textContent = Math.floor(cur); }, 16);
+}
+
+/* ─ Init ──────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  renderModels(); renderRepos(); renderTools(); renderStack(); populateDemoSelect();
+  document.getElementById("yr").textContent = new Date().getFullYear();
+  const ic = parseInt(localStorage.getItem("ic") || "0");
+  setTimeout(() => {
+    animNum("cnt-models",    MODELS.length, 900);
+    animNum("cnt-pipelines", 12, 1000);
+    animNum("cnt-repos",     REPOS.length,  850);
+    animNum("cnt-infer",     ic,            700);
+  }, 350);
+});
+</script>
+</body>
+</html>
