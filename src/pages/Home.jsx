@@ -1,308 +1,332 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { HF_API_KEY, HF_ENDPOINT, HF_MODEL, QUERY_LIMIT, CHAT_SYSTEM_PROMPT } from '../config/llm'
 
-const ROLES = ['AI/ML Engineer', 'LLM Systems Builder', 'RAG Architect', 'MLOps Engineer']
+// ── LocalStorage helpers ───────────────────────────────────────────
+const LS = {
+  getUsers: () => JSON.parse(localStorage.getItem('ar_users') || '[]'),
+  saveUsers: (u) => localStorage.setItem('ar_users', JSON.stringify(u)),
+  getSession: () => JSON.parse(localStorage.getItem('ar_session') || 'null'),
+  saveSession: (s) => localStorage.setItem('ar_session', JSON.stringify(s)),
+  clearSession: () => localStorage.removeItem('ar_session'),
+  getHistory: (uid) => JSON.parse(localStorage.getItem(`ar_history_${uid}`) || '[]'),
+  saveHistory: (uid, h) => localStorage.setItem(`ar_history_${uid}`, JSON.stringify(h)),
+  getQueryCount: (uid) => parseInt(localStorage.getItem(`ar_queries_${uid}`) || '0'),
+  incQueryCount: (uid) => {
+    const n = LS.getQueryCount(uid) + 1
+    localStorage.setItem(`ar_queries_${uid}`, String(n))
+    return n
+  },
+}
 
-const SPECIALTIES = [
-  {
-    to: '/ai-engineering',
-    color: '#60a5fa',
-    gradFrom: '#1e3a5f', gradTo: '#0f2040',
-    title: 'AI Engineering',
-    desc: 'Production LLM systems, RAG pipelines, fine-tuning (QLoRA/PEFT), responsible AI, and cloud-native deployment at enterprise scale.',
-    tags: ['LangChain', 'RAG', 'FastAPI', 'AWS'],
-    label: 'Primary Focus',
-  },
-  {
-    to: '/data-science',
-    color: '#a78bfa',
-    gradFrom: '#2d1b69', gradTo: '#1a0f40',
-    title: 'Data Science',
-    desc: 'End-to-end ML model development — classification, regression, NLP, and deep learning with PyTorch and HuggingFace.',
-    tags: ['PyTorch', 'Scikit-learn', 'HuggingFace', 'MLflow'],
-    label: 'Core Skill',
-  },
-  {
-    to: '/data-analytics',
-    color: '#06b6d4',
-    gradFrom: '#0c3340', gradTo: '#061a20',
-    title: 'Data Analytics',
-    desc: 'SQL, Python, and BI tools to transform raw data into actionable business intelligence — dashboards, pipelines, and insights.',
-    tags: ['SQL', 'Python', 'Tableau', 'dbt'],
-    label: 'Foundation',
-  },
-]
+async function hashPassword(pw) {
+  const data = new TextEncoder().encode(pw + '_ar_salt_2025')
+  const buf = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
 
-const PROJECTS = [
-  {
-    title: 'Texas SNAP Policy RAG System',
-    company: 'Personal Project',
-    desc: 'Production RAG pipeline over 500+ regulatory documents using Llama 3.0, LangChain, FAISS with hybrid retrieval — achieving 40% MRR improvement and confidence-scoring refusal gates.',
-    tags: ['Llama 3.0', 'LangChain', 'FAISS', 'Docker', 'AWS'],
-    metric: '40% MRR improvement',
-    color: '#60a5fa',
-    github: 'https://github.com/AbdulRasheed1011',
-  },
-  {
-    title: 'Enterprise LLM Fine-tuning Pipeline',
-    company: 'SF Global',
-    desc: 'Fine-tuned transformer-based LLMs using HuggingFace PEFT (QLoRA) and structured prompt engineering — improving production task accuracy by 18% with ONNX/INT8 optimization.',
-    tags: ['QLoRA', 'PEFT', 'PyTorch', 'HuggingFace', 'ONNX'],
-    metric: '18% accuracy improvement',
-    color: '#a78bfa',
-    github: 'https://github.com/AbdulRasheed1011',
-  },
-  {
-    title: 'ML-Driven Pricing Optimisation',
-    company: 'Al-Hashmi Traders',
-    desc: 'Machine learning–driven promotion and pricing models using Scikit-learn and statistical segmentation — growing sales by 44% and revenue by 37%.',
-    tags: ['Scikit-learn', 'Python', 'SQL', 'Tableau'],
-    metric: '44% sales increase',
-    color: '#06b6d4',
-    github: 'https://github.com/AbdulRasheed1011',
-  },
-]
+// ── HuggingFace chat call ──────────────────────────────────────────
+async function callHF(messages) {
+  if (!HF_API_KEY) {
+    // Demo mode fallback
+    await new Promise(r => setTimeout(r, 800))
+    return `This is a demo response. To enable real AI responses, add your HuggingFace API key to the .env file (VITE_HF_API_KEY). Get a free key at huggingface.co/settings/tokens.`
+  }
+  const res = await fetch(HF_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${HF_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: HF_MODEL,
+      messages: [{ role: 'system', content: CHAT_SYSTEM_PROMPT }, ...messages],
+      max_tokens: 600,
+      temperature: 0.7,
+      stream: false,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(err)
+  }
+  const data = await res.json()
+  return data.choices?.[0]?.message?.content || 'No response received.'
+}
 
-const TICKER_ITEMS = [
-  'PyTorch', 'LangChain', 'RAG', 'FAISS', 'QLoRA/PEFT', 'FastAPI',
-  'Docker', 'AWS SageMaker', 'HuggingFace', 'MLflow', 'Kubernetes',
-  'Python', 'Spring Boot', 'Pinecone', 'LLMs', 'Responsible AI',
-]
+// ── Auth form ─────────────────────────────────────────────────────
+function AuthForm({ onAuth }) {
+  const [mode, setMode] = useState('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-function useTypewriter(words, speed = 85, pause = 2200) {
-  const [text, setText]    = useState('')
-  const [wIdx, setWIdx]    = useState(0)
-  const [deleting, setDel] = useState(false)
-  useEffect(() => {
-    const word = words[wIdx]
-    const timeout = setTimeout(() => {
-      if (!deleting) {
-        setText(word.slice(0, text.length + 1))
-        if (text.length + 1 === word.length) setTimeout(() => setDel(true), pause)
-      } else {
-        setText(word.slice(0, text.length - 1))
-        if (text.length - 1 === 0) { setDel(false); setWIdx((wIdx + 1) % words.length) }
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!email.trim() || !password.trim()) { setError('Please fill in all fields.'); return }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    setError(''); setLoading(true)
+    const hash = await hashPassword(password)
+    const users = LS.getUsers()
+    if (mode === 'signup') {
+      if (users.find(u => u.email === email.toLowerCase())) {
+        setError('An account with this email already exists.'); setLoading(false); return
       }
-    }, deleting ? speed / 2 : speed)
-    return () => clearTimeout(timeout)
-  }, [text, deleting, wIdx, words, speed, pause])
-  return text
-}
-
-function useReveal() {
-  useEffect(() => {
-    const run = () => {
-      document.querySelectorAll('.reveal').forEach(el => {
-        const obs = new IntersectionObserver(entries => {
-          entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') })
-        }, { threshold: 0.1 })
-        obs.observe(el)
-      })
+      const uid = `u_${Date.now()}`
+      const newUser = { email: email.toLowerCase(), hash, uid, createdAt: new Date().toISOString() }
+      LS.saveUsers([...users, newUser])
+      LS.saveSession({ uid, email: email.toLowerCase() })
+      onAuth({ uid, email: email.toLowerCase() })
+    } else {
+      const user = users.find(u => u.email === email.toLowerCase() && u.hash === hash)
+      if (!user) { setError('Incorrect email or password.'); setLoading(false); return }
+      LS.saveSession({ uid: user.uid, email: user.email })
+      onAuth({ uid: user.uid, email: user.email })
     }
-    run()
-  }, [])
-}
+    setLoading(false)
+  }
 
-// ── Avatar — uses real photo if available, falls back to initials ──
-function Avatar({ size = 260 }) {
-  const [loaded, setLoaded] = useState(true)
   return (
-    <div style={{ position: 'relative', flexShrink: 0 }}>
-      {loaded ? (
-        <>
-          <img
-            src="photo.jpg"
-            alt="Abdul Rasheed"
-            className="avatar-photo"
-            style={{ width: size, height: size }}
-            onError={() => setLoaded(false)}
-          />
-          <div style={{
-            position: 'absolute', inset: -10, borderRadius: '50%',
-            border: '1px dashed rgba(124,58,237,0.35)', pointerEvents: 'none',
-          }} />
-        </>
-      ) : (
-        <div style={{
-          width: size, height: size, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #1e1e3a, #0d0d1f)',
-          border: '2px solid var(--border-h)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          position: 'relative', flexShrink: 0,
-          boxShadow: '0 0 60px rgba(124,58,237,0.15)',
-        }}>
-          <div style={{ fontSize: size * 0.28, fontWeight: 900, letterSpacing: -2, lineHeight: 1 }} className="gt">AR</div>
-          <div style={{ fontSize: size * 0.06, color: 'var(--muted2)', marginTop: 6, fontWeight: 600 }}>Abdul Rasheed</div>
-          <div style={{ position: 'absolute', inset: -12, borderRadius: '50%', border: '1px dashed var(--border)', pointerEvents: 'none' }} />
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg)', padding: '2rem',
+    }} className="bg-dots">
+      <div style={{
+        width: '100%', maxWidth: 420,
+        background: 'var(--card)', border: '1px solid var(--border)',
+        borderRadius: 'var(--rl)', padding: '2.5rem', position: 'relative',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+      }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, var(--purple), var(--cyan))', borderRadius: 'var(--rl) var(--rl) 0 0' }} />
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 900, marginBottom: '0.3rem' }}>
+            Abdul<span className="gt">.</span>AI
+          </div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--muted2)' }}>
+            {mode === 'login' ? 'Sign in to start chatting' : 'Create your account to get started'}
+          </div>
         </div>
-      )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-field">
+            <label>Email address</label>
+            <input className="form-input" type="email" placeholder="you@email.com" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div className="form-field">
+            <label>Password</label>
+            <input className="form-input" type="password" placeholder="Min. 6 characters" value={password} onChange={e => setPassword(e.target.value)} required />
+          </div>
+          {error && (
+            <div style={{ fontSize: '0.8rem', color: '#f87171', marginBottom: '1rem', padding: '8px 12px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 8 }}>
+              {error}
+            </div>
+          )}
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginBottom: '1rem' }} disabled={loading}>
+            {loading ? <span className="spinner" /> : mode === 'login' ? 'Sign In' : 'Create Account'}
+          </button>
+        </form>
+
+        <div style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--muted2)' }}>
+          {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+          <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
+            style={{ background: 'none', border: 'none', color: 'var(--purple-l)', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem' }}>
+            {mode === 'login' ? 'Sign Up' : 'Sign In'}
+          </button>
+        </div>
+
+        <div style={{ marginTop: '1.5rem', padding: '0.75rem', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 8, fontSize: '0.73rem', color: 'var(--muted2)', textAlign: 'center', lineHeight: 1.6 }}>
+          Free access: {QUERY_LIMIT} queries per account. Powered by HuggingFace AI.
+        </div>
+      </div>
     </div>
   )
 }
 
-export default function Home() {
-  const role = useTypewriter(ROLES)
-  useReveal()
+// ── Chat interface ─────────────────────────────────────────────────
+function ChatInterface({ user, onLogout }) {
+  const [msgs, setMsgs] = useState(() => LS.getHistory(user.uid))
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [queryCount, setQueryCount] = useState(() => LS.getQueryCount(user.uid))
+  const bottomRef = useRef(null)
+  const inputRef = useRef(null)
+  const remaining = QUERY_LIMIT - queryCount
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [msgs, loading])
+
+  async function sendMessage() {
+    const text = input.trim()
+    if (!text || loading || remaining <= 0) return
+    setInput('')
+    const userMsg = { role: 'user', content: text, ts: Date.now() }
+    const newMsgs = [...msgs, userMsg]
+    setMsgs(newMsgs)
+    LS.saveHistory(user.uid, newMsgs)
+    setLoading(true)
+
+    try {
+      const apiMsgs = newMsgs.map(m => ({ role: m.role, content: m.content }))
+      const reply = await callHF(apiMsgs)
+      const botMsg = { role: 'assistant', content: reply, ts: Date.now() }
+      const final = [...newMsgs, botMsg]
+      setMsgs(final)
+      LS.saveHistory(user.uid, final)
+      const newCount = LS.incQueryCount(user.uid)
+      setQueryCount(newCount)
+    } catch (err) {
+      const errMsg = { role: 'assistant', content: `Error: ${err.message || 'Something went wrong. Please try again.'}`, ts: Date.now(), error: true }
+      const final = [...newMsgs, errMsg]
+      setMsgs(final)
+      LS.saveHistory(user.uid, final)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+  }
+
+  function clearHistory() {
+    setMsgs([])
+    LS.saveHistory(user.uid, [])
+  }
 
   return (
-    <>
-      {/* ── Hero ───────────────────────────────────────── */}
-      <section className="bg-dots" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: 'var(--nav)', position: 'relative', overflow: 'hidden' }}>
-        <div className="orb" style={{ width: 700, height: 700, background: 'var(--purple)', top: -250, left: -200 }} />
-        <div className="orb" style={{ width: 500, height: 500, background: 'var(--blue)', bottom: -150, right: -150 }} />
-
-        <div className="container" style={{ width: '100%', paddingTop: '5rem', paddingBottom: '5rem', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4rem', flexWrap: 'wrap' }}>
-
-            {/* Text */}
-            <div style={{ flex: 1, minWidth: 300 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 999, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.03)', fontSize: '0.78rem', color: 'var(--muted2)', marginBottom: '2rem', letterSpacing: '0.5px' }}>
-                <span className="dot-green" style={{ flexShrink: 0 }} />
-                Available for new opportunities · Dallas, TX
-              </div>
-
-              <h1 style={{ fontSize: 'clamp(2.8rem,7vw,5.5rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: '1.25rem' }}>
-                Abdul Rasheed
-              </h1>
-
-              <div style={{ fontSize: 'clamp(1.1rem,2.5vw,1.6rem)', fontWeight: 700, color: 'var(--muted2)', marginBottom: '1.5rem', minHeight: '2rem' }}>
-                {role}<span style={{ color: 'var(--purple-l)', animation: 'blink 1s step-end infinite' }}>|</span>
-              </div>
-
-              <p style={{ fontSize: '1rem', color: 'var(--muted2)', maxWidth: 520, marginBottom: '2.5rem', lineHeight: 1.8 }}>
-                Artificial Intelligence and Machine Learning Engineer with 3+ years building enterprise-grade intelligent systems, from fine-tuned LLMs and production RAG pipelines to scalable ML deployment on AWS.
-              </p>
-
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
-                <Link to="/ai-engineering" className="btn btn-primary">View My Work</Link>
-                <Link to="/contact" className="btn btn-outline">Get In Touch</Link>
-                <a href="https://github.com/AbdulRasheed1011" target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-                  GitHub
-                </a>
-              </div>
-
-              {/* Stats */}
-              <div style={{ display: 'flex', gap: '2.5rem', flexWrap: 'wrap' }}>
-                {[['3+', "Years' Experience"], ['2', 'Companies'], ['40%', 'RAG MRR Gain'], ['18%', 'LLM Accuracy Gain']].map(([n, l]) => (
-                  <div key={l}>
-                    <div style={{ fontSize: '1.8rem', fontWeight: 900 }} className="gt">{n}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--muted2)', marginTop: 2, lineHeight: 1.3 }}>{l}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Avatar */}
-            <div style={{ flexShrink: 0 }} className="reveal reveal-delay-2">
-              <Avatar size={260} />
-            </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--border)',
+        background: 'var(--surface)', flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 900 }}>Abdul<span className="gt">.</span>AI</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--muted2)', padding: '2px 10px', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--card)' }}>
+            HuggingFace Inference
           </div>
         </div>
-      </section>
-
-      {/* ── Ticker ─────────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <div className="ticker-wrap">
-          <div className="ticker-inner">
-            {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
-              <span key={i} className="ticker-item">{item}<span className="ticker-dot" /></span>
-            ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{
+            fontSize: '0.75rem', fontWeight: 700, padding: '4px 12px', borderRadius: 999,
+            background: remaining === 0 ? 'rgba(248,113,113,0.12)' : remaining === 1 ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)',
+            color: remaining === 0 ? '#f87171' : remaining === 1 ? 'var(--orange)' : 'var(--green)',
+            border: `1px solid ${remaining === 0 ? 'rgba(248,113,113,0.25)' : remaining === 1 ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.25)'}`,
+          }}>
+            {remaining === 0 ? 'Query limit reached' : `${remaining} ${remaining === 1 ? 'query' : 'queries'} remaining`}
           </div>
+          <button onClick={clearHistory}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px', color: 'var(--muted2)', fontSize: '0.72rem', cursor: 'pointer' }}
+            title="Clear chat history">
+            Clear
+          </button>
+          <button onClick={onLogout}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px', color: 'var(--muted2)', fontSize: '0.72rem', cursor: 'pointer' }}>
+            Sign out
+          </button>
         </div>
       </div>
 
-      {/* ── Specialties ────────────────────────────────── */}
-      <section style={{ background: 'var(--surface)' }}>
-        <div className="section-inner">
-          <span className="sec-tag reveal">Expertise</span>
-          <h2 className="sec-title reveal reveal-delay-1">Three Areas of Depth</h2>
-          <p className="sec-sub reveal reveal-delay-2">From LLM fine-tuning and RAG architecture to analytics pipelines and production deployment. Full-stack AI capability across the enterprise.</p>
-
-          <div className="grid-3">
-            {SPECIALTIES.map((s, i) => (
-              <Link to={s.to} key={s.title} style={{ textDecoration: 'none' }}>
-                <div className={`card card-glow reveal reveal-delay-${i + 1}`}
-                  style={{ padding: '2rem', height: '100%', cursor: 'pointer', background: `linear-gradient(160deg, ${s.gradFrom}, ${s.gradTo})` }}>
-                  <div style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 6, background: `${s.color}22`, border: `1px solid ${s.color}44`, fontSize: '0.68rem', fontWeight: 800, color: s.color, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
-                    {s.label}
-                  </div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.6rem' }}>{s.title}</h3>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--muted2)', lineHeight: 1.75, marginBottom: '1.25rem' }}>{s.desc}</p>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {s.tags.map(t => <span key={t} className="tag">{t}</span>)}
-                  </div>
-                  <div style={{ marginTop: '1.5rem', fontSize: '0.82rem', color: s.color, fontWeight: 700 }}>Explore →</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Projects ───────────────────────────────────── */}
-      <section>
-        <div className="section-inner">
-          <span className="sec-tag reveal">Projects</span>
-          <h2 className="sec-title reveal reveal-delay-1">Real Work. Measurable Results.</h2>
-          <p className="sec-sub reveal reveal-delay-2">Production systems with quantified outcomes. Not demos, not toy models.</p>
-
-          <div className="grid-3">
-            {PROJECTS.map((p, i) => (
-              <div key={p.title} className={`card card-glow reveal reveal-delay-${i + 1}`} style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted2)', textTransform: 'uppercase', letterSpacing: '1px' }}>{p.company}</div>
-                  <a href={p.github} target="_blank" rel="noopener noreferrer"
-                    style={{ color: 'var(--muted2)', transition: 'color 0.2s' }}
-                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--muted2)'}>
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-                  </a>
-                </div>
-                <div style={{ fontWeight: 800, fontSize: '1rem', lineHeight: 1.3 }}>{p.title}</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--muted2)', lineHeight: 1.75, flex: 1 }}>{p.desc}</div>
-                {/* Metric pill */}
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: `${p.color}15`, border: `1px solid ${p.color}35`, fontSize: '0.75rem', fontWeight: 700, color: p.color, alignSelf: 'flex-start' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                  {p.metric}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {p.tags.map(t => <span key={t} className="tag">{t}</span>)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-            <Link to="/ai-engineering" className="btn btn-outline">See All Projects</Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA ─────────────────────────────────────────── */}
-      <section style={{ background: 'var(--surface)', position: 'relative', overflow: 'hidden' }}>
-        <div className="orb" style={{ width: 500, height: 500, background: 'var(--purple)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', opacity: 0.08 }} />
-        <div className="section-inner" style={{ textAlign: 'center', position: 'relative' }}>
-          <div style={{ maxWidth: 620, margin: '0 auto' }}>
-            <span className="sec-tag reveal" style={{ display: 'block', textAlign: 'center' }}>Open to Opportunities</span>
-            <h2 className="sec-title reveal reveal-delay-1">
-              Building <span className="gt">intelligent systems</span> that ship.
-            </h2>
-            <p style={{ color: 'var(--muted2)', marginBottom: '2.5rem', fontSize: '1rem', lineHeight: 1.8 }} className="reveal reveal-delay-2">
-              Whether your team needs a production RAG system, fine-tuned LLM, or an end-to-end ML pipeline, Abdul Rasheed brings the engineering depth to deliver it.
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }} className="reveal reveal-delay-3">
-              <Link to="/contact" className="btn btn-primary">Start a Conversation</Link>
-              <a href="https://www.linkedin.com/in/abdul-rasheed-12382b196/" target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                Connect on LinkedIn
-              </a>
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        {msgs.length === 0 && !loading && (
+          <div style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--muted2)' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48" style={{ margin: '0 auto', display: 'block', color: 'var(--purple-l)' }}>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.4rem' }}>Start a conversation</div>
+            <div style={{ fontSize: '0.85rem', maxWidth: 340, margin: '0 auto', lineHeight: 1.7 }}>
+              Ask me anything. You have {remaining} {remaining === 1 ? 'query' : 'queries'} available.
             </div>
           </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
+            {m.role === 'assistant' && (
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, var(--purple), var(--blue))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="14" height="14">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
+            )}
+            <div style={{
+              maxWidth: '70%', padding: '0.875rem 1.1rem', borderRadius: m.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+              background: m.role === 'user' ? 'linear-gradient(135deg, var(--purple), var(--blue))' : 'var(--card)',
+              border: m.role === 'user' ? 'none' : '1px solid var(--border)',
+              fontSize: '0.88rem', lineHeight: 1.75,
+              color: m.error ? '#f87171' : 'inherit',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}>
+              {m.content}
+              <div style={{ fontSize: '0.65rem', color: m.role === 'user' ? 'rgba(255,255,255,0.5)' : 'var(--muted)', marginTop: 6 }}>
+                {new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, var(--purple), var(--blue))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="14" height="14">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+            </div>
+            <div style={{ padding: '0.875rem 1.1rem', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px 14px 14px 2px', display: 'flex', gap: 5, alignItems: 'center' }}>
+              {[0, 1, 2].map(d => <span key={d} style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--muted2)', animation: `blink 1.2s infinite ${d * 0.2}s`, display: 'block' }} />)}
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+        {remaining === 0 ? (
+          <div style={{ textAlign: 'center', padding: '0.875rem', borderRadius: 12, background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', fontSize: '0.85rem', color: '#f87171' }}>
+            You have used all {QUERY_LIMIT} queries. Thank you for trying Abdul's AI!
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+            <textarea
+              ref={inputRef}
+              className="form-input"
+              placeholder="Ask anything..."
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKey}
+              disabled={loading || remaining === 0}
+              rows={1}
+              style={{ flex: 1, minHeight: 44, maxHeight: 120, resize: 'none', lineHeight: 1.5, paddingTop: 10 }}
+            />
+            <button className="btn btn-primary" onClick={sendMessage} disabled={loading || !input.trim() || remaining === 0}
+              style={{ height: 44, width: 44, padding: 0, flexShrink: 0, borderRadius: 10 }}>
+              {loading ? <span className="spinner" /> : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              )}
+            </button>
+          </div>
+        )}
+        <div style={{ fontSize: '0.68rem', color: 'var(--muted)', marginTop: '0.5rem', textAlign: 'center' }}>
+          Signed in as <strong style={{ color: 'var(--muted2)' }}>{user.email}</strong>
         </div>
-      </section>
-    </>
+      </div>
+    </div>
   )
+}
+
+// ── Main Home component ────────────────────────────────────────────
+export default function Home() {
+  const [user, setUser] = useState(() => LS.getSession())
+
+  function handleAuth(userData) { setUser(userData) }
+  function handleLogout() { LS.clearSession(); setUser(null) }
+
+  if (!user) return <AuthForm onAuth={handleAuth} />
+  return <ChatInterface user={user} onLogout={handleLogout} />
 }

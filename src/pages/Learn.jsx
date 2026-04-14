@@ -136,11 +136,11 @@ export default function Learn() {
         <div className="page-hero-inner" style={{ position: 'relative' }}>
           <span className="sec-tag">Learning Hub</span>
           <h1 style={{ fontSize: 'clamp(2.4rem,6vw,4.2rem)', fontWeight: 900, letterSpacing: '-0.03em', marginBottom: '1.25rem', lineHeight: 1.1, maxWidth: 700 }}>
-            Learn from{' '}
-            <span className="gt">real engineering decisions.</span>
+            Learn{' '}
+            <span className="gt">Data Science and Artificial Intelligence and Machine Learning Engineering</span>
           </h1>
           <p style={{ fontSize: '1.05rem', color: 'var(--muted2)', maxWidth: 580, lineHeight: 1.85 }}>
-            Articles, tutorials, and deep dives on Data Analytics, Data Science, and AI Engineering, written by Abdul Rasheed from direct production experience. No theory without practice.
+            Articles, tutorials, and deep dives on Data Analytics, Data Science, and Artificial Intelligence and Machine Learning Engineering, written by Abdul Rasheed from direct production experience. No theory without practice.
           </p>
           <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
             {CATEGORIES.map(c => (

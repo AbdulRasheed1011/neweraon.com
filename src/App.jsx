@@ -17,11 +17,14 @@ function ScrollToTop() {
   return null
 }
 
-export default function App() {
+function AppShell() {
+  const { pathname } = useLocation()
+  const isHome = pathname === '/'
+
   return (
     <>
       <ScrollToTop />
-      <Navbar />
+      {!isHome && <Navbar />}
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -33,8 +36,12 @@ export default function App() {
           <Route path="/contact" element={<Contact />} />
         </Routes>
       </main>
-      <Footer />
-      <ChatWidget />
+      {!isHome && <Footer />}
+      {!isHome && <ChatWidget />}
     </>
   )
+}
+
+export default function App() {
+  return <AppShell />
 }
