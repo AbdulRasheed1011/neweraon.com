@@ -169,7 +169,7 @@ export default function About() {
               <h1 style={{ fontSize: 'clamp(2.8rem,6vw,4.5rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.0, marginBottom: '0.5rem' }}>
                 Abdul Rasheed
               </h1>
-              <div style={{ fontSize: '1rem', fontWeight: 700, background: 'linear-gradient(135deg,var(--purple-l),var(--cyan))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '0.2rem' }}>
+              <div className="gt" style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.2rem' }}>
                 Artificial Intelligence and Machine Learning Engineer
               </div>
               <div style={{ fontSize: '0.88rem', color: 'var(--muted2)', fontWeight: 600, marginBottom: '1.5rem' }}>

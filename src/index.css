@@ -531,3 +531,12 @@ textarea.form-input { resize: vertical; min-height: 130px; line-height: 1.6; }
   .before-after { grid-template-columns: 1fr; }
   .before-after-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
 }
+
+/* ── Home page nav (desktop/mobile) ─────────────────────── */
+@media (max-width: 768px) {
+  .home-nav-links { display: none !important; }
+  .home-nav-hamburger { display: block !important; }
+}
+@media (min-width: 769px) {
+  .home-nav-mobile { display: none !important; }
+}
