@@ -1,11 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import emailjs from '@emailjs/browser'
 import { HF_API_KEY, HF_ENDPOINT, HF_MODEL, QUERY_LIMIT, CHAT_SYSTEM_PROMPT } from '../config/llm'
 
-const EMAILJS_SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID        || ''
-const EMAILJS_RESET_TMPL  = import.meta.env.VITE_EMAILJS_RESET_TEMPLATE_ID || ''
-const EMAILJS_VERIFY_TMPL = import.meta.env.VITE_EMAILJS_VERIFY_TEMPLATE_ID || ''
-const EMAILJS_PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY         || ''
+// AWS API Gateway endpoint for SES email sending (set in .env)
+const SES_API_URL = import.meta.env.VITE_SES_API_URL || ''
 
 // ── Nav links ─────────────────────────────────────────────────────
 const NAV_LINKS = [
@@ -145,12 +142,23 @@ function clearURLParams() {
   window.history.replaceState(null, '', `${window.location.pathname}#/`)
 }
 
-async function sendEmail(templateId, params) {
-  if (!EMAILJS_SERVICE_ID || !templateId || !EMAILJS_PUBLIC_KEY) {
-    console.info('[Dev] EmailJS not configured. Params:', params)
+// ── AWS SES email via Lambda/API Gateway ──────────────────────────
+async function sendEmail({ type, toEmail, toName, link }) {
+  if (!SES_API_URL) {
+    // Dev mode: log the link so you can test without AWS
+    console.info(`[Dev] SES not configured. Email type: ${type}`)
+    console.info(`[Dev] ${type === 'verify' ? 'Verify' : 'Reset'} link:`, link)
     return
   }
-  await emailjs.send(EMAILJS_SERVICE_ID, templateId, params, { publicKey: EMAILJS_PUBLIC_KEY })
+  const res = await fetch(SES_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, toEmail, toName, link }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to send email')
+  }
 }
 
 // ── HuggingFace chat call ──────────────────────────────────────────
@@ -274,10 +282,11 @@ function ForgotPasswordForm({ onBack }) {
       const token = generateToken()
       LS.saveResetToken(token, user.email)
       const resetLink = `${window.location.origin}${window.location.pathname}#/?reset=${token}`
-      await sendEmail(EMAILJS_RESET_TMPL, {
-        to_email: user.email,
-        to_name: user.firstName ? `${user.firstName} ${user.lastName}` : user.email,
-        reset_link: resetLink,
+      await sendEmail({
+        type: 'reset',
+        toEmail: user.email,
+        toName: user.firstName ? `${user.firstName} ${user.lastName}` : user.email,
+        link: resetLink,
       }).catch(console.error)
     }
     await new Promise(r => setTimeout(r, 900))
@@ -445,10 +454,11 @@ function AuthForm({ onAuth, onForgot, onSignupPending }) {
 
       // Send verification email
       const verifyLink = `${window.location.origin}${window.location.pathname}#/?verify=${verifyToken}`
-      await sendEmail(EMAILJS_VERIFY_TMPL, {
-        to_email:   newUser.email,
-        to_name:    `${newUser.firstName} ${newUser.lastName}`,
-        verify_link: verifyLink,
+      await sendEmail({
+        type:    'verify',
+        toEmail: newUser.email,
+        toName:  `${newUser.firstName} ${newUser.lastName}`,
+        link:    verifyLink,
       }).catch(console.error)
 
       setLoading(false)
@@ -718,10 +728,11 @@ export default function Home() {
     users[idx].verifyToken = newToken
     LS.saveUsers(users)
     const verifyLink = `${window.location.origin}${window.location.pathname}#/?verify=${newToken}`
-    await sendEmail(EMAILJS_VERIFY_TMPL, {
-      to_email:    user.email,
-      to_name:     user.firstName ? `${user.firstName} ${user.lastName}` : user.email,
-      verify_link: verifyLink,
+    await sendEmail({
+      type:    'verify',
+      toEmail: user.email,
+      toName:  user.firstName ? `${user.firstName} ${user.lastName}` : user.email,
+      link:    verifyLink,
     }).catch(console.error)
   }
 

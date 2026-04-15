@@ -1,0 +1,10 @@
+{
+  "name": "neweraon-email-lambda",
+  "version": "1.0.0",
+  "description": "AWS Lambda — sends verification and password reset emails via SES",
+  "type": "module",
+  "main": "sendEmail.js",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.0.0"
+  }
+}
